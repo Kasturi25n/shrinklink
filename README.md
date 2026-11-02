@@ -1,6 +1,11 @@
 # URL Shortener with Analytics
 
+[![CI](https://github.com/Kasturi25n/url-shortener/actions/workflows/ci.yml/badge.svg)](https://github.com/Kasturi25n/url-shortener/actions/workflows/ci.yml)
+
 A URL shortener built with **FastAPI**, with JWT auth, Redis caching, rate limiting and click analytics (referrers, browsers, devices, countries, clicks per day).
+
+**Live demo:** https://url-shortener-pmhm.onrender.com ([interactive API docs](https://url-shortener-pmhm.onrender.com/docs))
+Hosted on Render's free tier with Postgres and Redis. After ~15 minutes idle the first request takes 30-60 seconds to wake the service.
 
 Runs with zero setup (SQLite + in-memory cache). In production it uses **PostgreSQL + Redis** via two environment variables.
 
@@ -81,7 +86,7 @@ The repo includes a [`render.yaml`](render.yaml) Blueprint. In the Render dashbo
 pytest -q
 ```
 
-31 tests covering auth, link creation and validation, ownership isolation, redirects, cache behaviour and invalidation, expiry, rate limiting and analytics aggregation. CI also runs the suite against real Postgres and Redis (see `.github/workflows/ci.yml`).
+35 tests covering auth, link creation and validation, ownership isolation, redirects, cache behaviour and invalidation, expiry, rate limiting and analytics aggregation. CI also runs the suite against real Postgres and Redis (see `.github/workflows/ci.yml`).
 
 ## Load test
 
