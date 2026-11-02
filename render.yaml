@@ -27,7 +27,6 @@ services:
     name: url-shortener-cache
     plan: free
     ipAllowList: [] # internal traffic only
-    maxmemoryPolicy: allkeys_lru
 
 databases:
   - name: url-shortener-db
