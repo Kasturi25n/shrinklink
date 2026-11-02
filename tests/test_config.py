@@ -1,15 +1,18 @@
 from app.config import Settings
 
 
-def test_heroku_style_postgres_url_is_normalised():
-    s = Settings(database_url="postgres://u:p@host:5432/db")
-    assert s.database_url == "postgresql://u:p@host:5432/db"
+def test_postgres_urls_are_pinned_to_psycopg2():
+    # Both forms hosts hand out must end up naming the driver explicitly.
+    for given in ("postgres://u:p@host:5432/db", "postgresql://u:p@host:5432/db"):
+        assert Settings(database_url=given).database_url == "postgresql+psycopg2://u:p@host:5432/db"
 
 
 def test_other_database_urls_untouched():
     assert Settings(database_url="sqlite:///x.db").database_url == "sqlite:///x.db"
     url = "postgresql+psycopg2://u:p@host/db"
     assert Settings(database_url=url).database_url == url
+    asyncpg = "postgresql+asyncpg://u:p@host/db"
+    assert Settings(database_url=asyncpg).database_url == asyncpg
 
 
 def test_base_url_falls_back_to_render_external_url(monkeypatch):

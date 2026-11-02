@@ -40,9 +40,13 @@ class Settings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def normalise_postgres_scheme(cls, v: str) -> str:
-        # Heroku/Render-style URLs use "postgres://", which SQLAlchemy 2.x rejects.
-        if v.startswith("postgres://"):
-            return "postgresql://" + v[len("postgres://"):]
+        # Hosts such as Render hand out "postgres://" or "postgresql://" URLs. Neither
+        # names a driver: the first is rejected by SQLAlchemy 2.x and the second picks
+        # a driver by library default, which changed between SQLAlchemy versions.
+        # Always pin the driver we actually install (psycopg2).
+        for prefix in ("postgres://", "postgresql://"):
+            if v.startswith(prefix):
+                return "postgresql+psycopg2://" + v[len(prefix):]
         return v
 
 
