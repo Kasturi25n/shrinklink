@@ -1,0 +1,34 @@
+# Render Blueprint: Render dashboard -> New -> Blueprint -> pick this repo.
+# Provisions the API, a Postgres database and a Redis-compatible Key Value store.
+services:
+  - type: web
+    name: url-shortener
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    # One instance only: tables are created at startup, so several instances
+    # booting against a fresh DB could race (see README roadmap: Alembic).
+    numInstances: 1
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: url-shortener-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: url-shortener-cache
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      # BASE_URL is picked up automatically from Render's RENDER_EXTERNAL_URL.
+
+  - type: keyvalue
+    name: url-shortener-cache
+    plan: free
+    ipAllowList: [] # internal traffic only
+    maxmemoryPolicy: allkeys_lru
+
+databases:
+  - name: url-shortener-db
+    plan: free

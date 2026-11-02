@@ -1,6 +1,8 @@
+import os
 from functools import lru_cache
 from typing import Optional
 
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,7 +22,10 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 60
 
-    base_url: str = "http://localhost:8000"
+    # BASE_URL wins if set; otherwise use the public URL Render injects; otherwise localhost.
+    base_url: str = Field(
+        default_factory=lambda: os.environ.get("RENDER_EXTERNAL_URL", "http://localhost:8000")
+    )
     short_code_length: int = 7
 
     # How long a resolved short link stays in the cache.
@@ -30,6 +35,15 @@ class Settings(BaseSettings):
     redirect_rate_limit: int = 120
     create_rate_limit: int = 20
     rate_limit_window_seconds: int = 60
+
+
+    @field_validator("database_url")
+    @classmethod
+    def normalise_postgres_scheme(cls, v: str) -> str:
+        # Heroku/Render-style URLs use "postgres://", which SQLAlchemy 2.x rejects.
+        if v.startswith("postgres://"):
+            return "postgresql://" + v[len("postgres://"):]
+        return v
 
 
 @lru_cache

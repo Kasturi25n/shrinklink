@@ -44,6 +44,10 @@ export SECRET_KEY=$(openssl rand -hex 32)
 docker compose up --build
 ```
 
+### Deploy to Render
+
+The repo includes a [`render.yaml`](render.yaml) Blueprint. In the Render dashboard choose **New → Blueprint**, select this repo, and it provisions the API (Docker), a Postgres database and a Redis-compatible Key Value store, all on free plans. `SECRET_KEY` is generated for you and the public URL is detected automatically.
+
 ## API
 
 | Method | Path | Auth | Description |
