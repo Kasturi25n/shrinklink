@@ -2,14 +2,14 @@ from typing import List
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.cache import Cache, get_cache
 from app.config import Settings, get_settings
 from app.database import get_db
-from app.models import Link, User, utcnow
+from app.models import Click, Link, User, utcnow
 from app.rate_limit import limit_creates
 from app.schemas import LinkCreate, LinkOut
 from app.security import get_current_user
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/links", tags=["links"])
 MAX_CODE_ATTEMPTS = 5
 
 
-def to_out(link: Link, settings: Settings) -> LinkOut:
+def to_out(link: Link, settings: Settings, clicks: int = 0) -> LinkOut:
     return LinkOut(
         code=link.code,
         short_url=f"{settings.base_url.rstrip('/')}/{link.code}",
@@ -28,7 +28,18 @@ def to_out(link: Link, settings: Settings) -> LinkOut:
         created_at=link.created_at,
         expires_at=link.expires_at,
         is_active=link.is_active,
+        clicks=clicks,
     )
+
+
+def click_counts(db: Session, link_ids: List[int]) -> dict:
+    """All-time clicks per link in ONE grouped query (avoids an N+1 on the list endpoint)."""
+    if not link_ids:
+        return {}
+    rows = db.execute(
+        select(Click.link_id, func.count()).where(Click.link_id.in_(link_ids)).group_by(Click.link_id)
+    ).all()
+    return dict(rows)
 
 
 def get_owned_link(code: str, user: User, db: Session) -> Link:
@@ -106,14 +117,17 @@ def list_links(
     offset: int = 0,
 ):
     limit = max(1, min(limit, 100))
-    rows = db.scalars(
-        select(Link)
-        .where(Link.owner_id == user.id)
-        .order_by(Link.created_at.desc(), Link.id.desc())
-        .limit(limit)
-        .offset(max(0, offset))
+    links = list(
+        db.scalars(
+            select(Link)
+            .where(Link.owner_id == user.id)
+            .order_by(Link.created_at.desc(), Link.id.desc())
+            .limit(limit)
+            .offset(max(0, offset))
+        )
     )
-    return [to_out(link, settings) for link in rows]
+    counts = click_counts(db, [link.id for link in links])
+    return [to_out(link, settings, counts.get(link.id, 0)) for link in links]
 
 
 @router.get("/{code}", response_model=LinkOut)
@@ -123,7 +137,8 @@ def get_link(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ):
-    return to_out(get_owned_link(code, user, db), settings)
+    link = get_owned_link(code, user, db)
+    return to_out(link, settings, click_counts(db, [link.id]).get(link.id, 0))
 
 
 @router.delete("/{code}", status_code=status.HTTP_204_NO_CONTENT)

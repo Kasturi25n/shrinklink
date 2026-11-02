@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
@@ -38,6 +38,15 @@ class LinkCreate(BaseModel):
     custom_alias: Optional[str] = Field(default=None, min_length=3, max_length=32)
     expires_at: Optional[datetime] = None
 
+    @field_validator("expires_at")
+    @classmethod
+    def to_naive_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        # Clients (browsers, "...Z" timestamps) send timezone-aware values; the DB and the
+        # rest of the app use naive UTC, and comparing the two raises TypeError.
+        if v is not None and v.tzinfo is not None:
+            return v.astimezone(timezone.utc).replace(tzinfo=None)
+        return v
+
 
 class LinkOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -47,6 +56,7 @@ class LinkOut(BaseModel):
     created_at: datetime
     expires_at: Optional[datetime]
     is_active: bool
+    clicks: int = 0  # all-time click count
 
 
 # ---------- Analytics ----------

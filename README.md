@@ -4,6 +4,8 @@
 
 A URL shortener built with **FastAPI**, with JWT auth, Redis caching, rate limiting and click analytics (referrers, browsers, devices, countries, clicks per day).
 
+![Analytics dashboard](docs/dashboard.png)
+
 **Live demo:** https://url-shortener-pmhm.onrender.com ([interactive API docs](https://url-shortener-pmhm.onrender.com/docs))
 Hosted on Render's free tier with Postgres and Redis. After ~15 minutes idle the first request takes 30-60 seconds to wake the service.
 
@@ -29,6 +31,7 @@ flowchart LR
 - Optional link expiry (enforced exactly, even for cached links)
 - Per-user link management (list, inspect, delete) with JWT auth
 - Analytics per link: total clicks, clicks per day, top referrers, browsers, devices, countries
+- **Web dashboard** at `/dashboard`: sign up, create and manage links, and explore analytics with a 7/30/90-day filter, hover tooltips, a table view for every chart, dark mode and a phone layout. Plain HTML/CSS/JS (charts are hand-built SVG, no build step or third-party scripts), served with a locked-down Content-Security-Policy; all user-supplied text is rendered with `textContent`
 - Fixed-window rate limiting per client IP (separate limits for redirects and link creation)
 - Input validation: only `http(s)` URLs, reserved aliases blocked, self-referencing links rejected
 
@@ -40,7 +43,7 @@ pip install -r requirements-dev.txt
 uvicorn app.main:app --reload
 ```
 
-Open http://localhost:8000/docs for the interactive API docs.
+Open http://localhost:8000 for the dashboard, or http://localhost:8000/docs for the interactive API docs.
 
 ### Full stack with Docker (Postgres + Redis)
 
@@ -65,6 +68,7 @@ The repo includes a [`render.yaml`](render.yaml) Blueprint. In the Render dashbo
 | DELETE | `/api/links/{code}` | yes | Delete a link and its clicks |
 | GET | `/api/links/{code}/analytics?days=30` | yes | Click analytics |
 | GET | `/{code}` | no | Redirect (302) |
+| GET | `/dashboard` | no (page); API calls need a JWT | Web dashboard (`/` redirects here) |
 
 ## Design decisions
 
@@ -86,7 +90,7 @@ The repo includes a [`render.yaml`](render.yaml) Blueprint. In the Render dashbo
 pytest -q
 ```
 
-35 tests covering auth, link creation and validation, ownership isolation, redirects, cache behaviour and invalidation, expiry, rate limiting and analytics aggregation. CI also runs the suite against real Postgres and Redis (see `.github/workflows/ci.yml`).
+45 tests covering auth, link creation and validation, ownership isolation, redirects, cache behaviour and invalidation, expiry (including timezone-aware timestamps), rate limiting, analytics aggregation and the dashboard's security headers. CI also runs the suite against real Postgres and Redis (see `.github/workflows/ci.yml`).
 
 ## Load test
 
@@ -111,4 +115,5 @@ These are laptop numbers for a single process, not a production benchmark. The P
 - [ ] Batch click writes (buffer in memory or Redis, bulk insert) instead of one insert per click
 - [ ] GeoIP lookup (country currently comes from a proxy header such as Cloudflare's `CF-IPCountry`)
 - [ ] Sliding-window rate limiter
-- [ ] Simple frontend dashboard for analytics charts
+- [x] ~~Simple frontend dashboard for analytics charts~~ (done: `/dashboard`)
+- [ ] Browser-level (Playwright) tests for the dashboard; today it is verified manually in headless Chrome

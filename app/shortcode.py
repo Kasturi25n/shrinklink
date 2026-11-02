@@ -18,7 +18,9 @@ ALPHABET = string.ascii_letters + string.digits  # Base62
 ALIAS_PATTERN = re.compile(r"^[A-Za-z0-9_-]{3,32}$")
 
 # Paths the app itself serves; a link must never shadow them.
-RESERVED_CODES = {"api", "docs", "redoc", "openapi.json", "health", "static", "favicon.ico"}
+RESERVED_CODES = {
+    "api", "docs", "redoc", "openapi.json", "health", "static", "favicon.ico", "dashboard",
+}
 
 
 def generate_code(length: int = 7) -> str:

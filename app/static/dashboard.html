@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Link Analytics</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232a78d6'/%3E%3Cpath d='M13 11h-1a5 5 0 000 10h1M19 11h1a5 5 0 010 10h-1M12 16h8' stroke='white' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  /* Colours are roles, not raw hex. Values come from the validated reference palette;
+     dark mode is its own selected set of steps, not an automatic inversion. */
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --series-1: #2a78d6;
+    --button: #256abf;
+    --critical: #d03b3b;
+    --wash: rgba(11, 11, 11, 0.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --ink: #f0efec;
+      --ink-2: #c3c2b7;
+      --muted: #898781;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --border: rgba(255, 255, 255, 0.10);
+      --series-1: #3987e5;
+      --button: #2a78d6;
+      --critical: #d03b3b;
+      --wash: rgba(255, 255, 255, 0.05);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  [hidden] { display: none !important; }
+  h1, h2, h3 { margin: 0; font-weight: 600; line-height: 1.25; }
+  h1 { font-size: 22px; }
+  h2 { font-size: 16px; }
+  h3 { font-size: 14px; color: var(--ink-2); font-weight: 600; }
+  .sub { color: var(--ink-2); margin: 4px 0 0; }
+  .muted { color: var(--muted); }
+
+  .top {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    max-width: 1040px; margin: 0 auto; padding: 20px 16px 8px;
+  }
+  .brand { font-weight: 600; font-size: 17px; }
+  .who { display: flex; align-items: center; gap: 12px; color: var(--ink-2); font-size: 14px; min-width: 0; }
+  .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  main { max-width: 1040px; margin: 0 auto; padding: 8px 16px 64px; display: grid; gap: 16px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px;
+  }
+  .narrow { max-width: 400px; margin: 48px auto 0; }
+
+  label { display: grid; gap: 6px; font-size: 13px; color: var(--ink-2); }
+  .opt { color: var(--muted); }
+  input {
+    font: inherit; color: var(--ink); background: var(--page);
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; min-width: 0; width: 100%;
+  }
+  input::placeholder { color: var(--muted); }
+  :focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+
+  button {
+    font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--border);
+    background: transparent; color: var(--ink); padding: 8px 14px;
+  }
+  button:hover { background: var(--wash); }
+  button.primary { background: var(--button); border-color: var(--button); color: #fff; font-weight: 600; }
+  button.primary:hover { filter: brightness(1.08); }
+  button:disabled { opacity: .55; cursor: default; }
+  button.link { border: 0; padding: 2px 4px; color: var(--ink-2); font-size: 13px; text-decoration: underline; }
+
+  .tabs { display: flex; gap: 4px; margin: 20px 0 16px; border-bottom: 1px solid var(--grid); }
+  .tabs button {
+    border: 0; border-radius: 0; padding: 8px 12px; color: var(--ink-2);
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--series-1); font-weight: 600; }
+  form.stack { display: grid; gap: 14px; }
+
+  .msg { margin: 12px 0 0; font-size: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .error {
+    border-left: 3px solid var(--critical); padding: 6px 10px; background: var(--wash);
+    border-radius: 0 6px 6px 0;
+  }
+  .error::before { content: "!"; font-weight: 700; color: var(--critical); margin-right: 6px; }
+
+  .create { display: grid; gap: 12px; grid-template-columns: 2fr 1fr 1fr auto; align-items: end; margin-top: 14px; }
+
+  /* links table */
+  .table-wrap { overflow-x: auto; margin-top: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 10px; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+  th { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: none; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.row { cursor: pointer; }
+  tr.row:hover td { background: var(--wash); }
+  tr.row[aria-selected="true"] td { background: var(--wash); box-shadow: inset 3px 0 0 var(--series-1); }
+  tr.row[aria-selected="true"] td:not(:first-child) { box-shadow: none; }
+  td.dest { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+  .short { font-weight: 600; text-decoration: none; color: var(--ink); }
+  .short:hover { text-decoration: underline; }
+  .actions { white-space: nowrap; text-align: right; }
+
+  /* analytics */
+  #analytics { display: grid; gap: 16px; transition: opacity .15s; }
+  #analytics.loading { opacity: .55; }
+  .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+  .head p { margin: 2px 0 0; color: var(--ink-2); font-size: 14px; word-break: break-all; }
+  .filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 7px 14px; }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button[aria-pressed="true"] { background: var(--wash); font-weight: 600; box-shadow: inset 0 -2px 0 var(--series-1); }
+  .toggle[aria-pressed="true"] { background: var(--wash); font-weight: 600; }
+
+  .hero { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .hero .value { font-size: 56px; line-height: 1; font-weight: 600; letter-spacing: -0.02em; }
+  .hero .label { color: var(--ink-2); }
+
+  .grid2 { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+  .chart-title { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+  .chart-title .note { font-size: 12px; color: var(--muted); }
+  .empty { color: var(--muted); padding: 20px 0; font-size: 14px; }
+
+  /* line chart */
+  .linechart { width: 100%; }
+  .linechart svg { display: block; max-width: 100%; touch-action: pan-y; }
+  .tick { fill: var(--muted); font-size: 11px; }
+  .endlabel { fill: var(--ink); font-size: 12px; font-weight: 600; }
+
+  /* ranked bars: nominal categories, so one colour; length alone carries magnitude */
+  ul.bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  ul.bars li {
+    display: grid; grid-template-columns: minmax(70px, 34%) 1fr; align-items: center; gap: 10px;
+    min-height: 32px; padding: 0 6px; margin: 0 -6px; border-radius: 6px;
+  }
+  ul.bars li:hover, ul.bars li:focus-visible { background: var(--wash); }
+  .bar-label { color: var(--ink-2); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-area { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .bar {
+    height: 16px; min-width: 2px; flex: 0 0 auto; background: var(--series-1);
+    width: calc(var(--w) * (100% - 48px));
+    border-radius: 0 4px 4px 0; /* square at the baseline, 4px at the data end */
+  }
+  ul.bars li:hover .bar, ul.bars li:focus-visible .bar { filter: brightness(1.12); }
+  .bar-value { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .datatable { max-height: 260px; overflow: auto; }
+  .datatable table { font-size: 13px; }
+  .datatable th, .datatable td { padding: 6px 8px; }
+
+  /* tooltip */
+  #tip {
+    position: fixed; z-index: 10; pointer-events: none; display: none;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; font-size: 13px; box-shadow: 0 4px 16px rgba(0, 0, 0, .18);
+    max-width: 260px;
+  }
+  #tip .t-title { color: var(--ink-2); font-size: 12px; margin-bottom: 4px; overflow-wrap: anywhere; }
+  #tip .t-row { display: flex; align-items: center; gap: 8px; }
+  #tip .t-key { width: 12px; height: 2px; background: var(--series-1); border-radius: 1px; flex: none; }
+  #tip strong { font-weight: 700; }
+  #tip .t-label { color: var(--ink-2); }
+
+  @media (max-width: 760px) {
+    .create { grid-template-columns: 1fr; }
+    .grid2 { grid-template-columns: 1fr; }
+    ul.bars li { grid-template-columns: minmax(110px, 44%) 1fr; }
+    .col-dest, .col-created { display: none; }
+    .hero .value { font-size: 48px; }
+  }
+  @media (prefers-reduced-motion: reduce) { #analytics { transition: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="brand">Link analytics</span>
+  <div class="who" id="who" hidden>
+    <span id="who-email"></span>
+    <button id="logout" type="button">Log out</button>
+  </div>
+</header>
+
+<main>
+  <!-- ============ Auth ============ -->
+  <section id="auth-view" class="card narrow" hidden>
+    <h1>Welcome</h1>
+    <p class="sub">Shorten links and see who clicks them.</p>
+    <div class="tabs" role="tablist">
+      <button id="tab-login" role="tab" type="button" aria-selected="true">Log in</button>
+      <button id="tab-register" role="tab" type="button" aria-selected="false">Create account</button>
+    </div>
+    <form id="auth-form" class="stack">
+      <label>Email
+        <input id="email" type="email" autocomplete="username" required>
+      </label>
+      <label><span>Password <span class="opt" id="pw-hint" hidden>(at least 8 characters)</span></span>
+        <input id="password" type="password" autocomplete="current-password" minlength="8" required>
+      </label>
+      <p id="auth-error" class="msg error" role="alert" hidden></p>
+      <button id="auth-submit" class="primary" type="submit">Log in</button>
+    </form>
+  </section>
+
+  <!-- ============ App ============ -->
+  <section id="app-view" hidden style="display:contents">
+    <div class="card">
+      <h2>Create a short link</h2>
+      <form id="create-form" class="create">
+        <label>Destination URL
+          <input id="url" type="url" placeholder="https://example.com/a/very/long/link" required>
+        </label>
+        <label><span>Custom alias <span class="opt">(optional)</span></span>
+          <input id="alias" type="text" pattern="[A-Za-z0-9_\-]{3,32}" placeholder="my-link" maxlength="32"
+                 title="3 to 32 letters, digits, - or _">
+        </label>
+        <label><span>Expires <span class="opt">(optional)</span></span>
+          <input id="expires" type="datetime-local">
+        </label>
+        <button id="create-submit" class="primary" type="submit">Shorten</button>
+      </form>
+      <p id="create-msg" class="msg" aria-live="polite" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2>Your links</h2>
+      <div id="links-empty" class="empty" hidden>No links yet. Create your first one above.</div>
+      <div class="table-wrap" id="links-wrap" hidden>
+        <table>
+          <thead>
+            <tr>
+              <th>Short link</th>
+              <th class="col-dest">Destination</th>
+              <th class="num">Clicks</th>
+              <th class="col-created">Created</th>
+              <th><span class="sr" style="position:absolute;left:-9999px">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="links-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <section id="analytics" hidden>
+      <div class="head">
+        <div>
+          <h2 id="a-title">Analytics</h2>
+          <p id="a-dest"></p>
+        </div>
+        <!-- One filter row, above everything it scopes. -->
+        <div class="filters" role="group" aria-label="Filters">
+          <div class="seg" role="group" aria-label="Date range">
+            <button type="button" data-days="7" aria-pressed="false">7 days</button>
+            <button type="button" data-days="30" aria-pressed="true">30 days</button>
+            <button type="button" data-days="90" aria-pressed="false">90 days</button>
+          </div>
+          <button id="table-toggle" class="toggle" type="button" aria-pressed="false">Table view</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hero">
+          <span class="value" id="hero-value">0</span>
+          <span class="label" id="hero-label">clicks</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="chart-title"><h3>Clicks per day</h3><span class="note">UTC</span></div>
+        <div id="chart-days" class="linechart"></div>
+      </div>
+
+      <div class="grid2">
+        <div class="card"><div class="chart-title"><h3>Browsers</h3></div><div id="chart-browsers"></div></div>
+        <div class="card"><div class="chart-title"><h3>Devices</h3></div><div id="chart-devices"></div></div>
+        <div class="card"><div class="chart-title"><h3>Top referrers</h3></div><div id="chart-referrers"></div></div>
+        <div class="card"><div class="chart-title"><h3>Countries</h3></div><div id="chart-countries"></div></div>
+      </div>
+    </section>
+  </section>
+</main>
+
+<div id="tip" role="tooltip"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ---------- helpers ---------- */
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const svgNS = "http://www.w3.org/2000/svg";
+
+  // Everything user- or server-supplied goes in via textContent / text nodes, never innerHTML.
+  function el(tag, props, ...kids) {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(props || {})) {
+      if (k === "class") n.className = v;
+      else if (k === "text") n.textContent = v;
+      else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v);
+    }
+    for (const kid of kids.flat()) if (kid != null) n.append(kid);
+    return n;
+  }
+  function svg(tag, attrs) {
+    const n = document.createElementNS(svgNS, tag);
+    for (const [k, v] of Object.entries(attrs || {})) n.setAttribute(k, v);
+    return n;
+  }
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage blocked: stay logged in for this tab only */ } },
+    del(k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } },
+  };
+  const fmt = (n) => Number(n).toLocaleString();
+  const fmtDay = (iso) => new Date(iso + "T00:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+  const fmtDayLong = (iso) => new Date(iso + "T00:00:00Z").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+
+  /* ---------- state ---------- */
+  const state = {
+    token: store.get("token"),
+    email: store.get("email"),
+    mode: "login",
+    links: [],
+    selected: null,
+    days: 30,
+    table: false,
+    data: null,
+    series: [],
+  };
+
+  /* ---------- API ---------- */
+  function errorText(data, status) {
+    if (status === 429) return "Too many requests. Please wait a minute and try again.";
+    const d = data && data.detail;
+    if (typeof d === "string") return d;
+    if (Array.isArray(d) && d.length) {
+      const field = String(d[0].loc && d[0].loc[d[0].loc.length - 1] || "input");
+      return `${field}: ${d[0].msg}`;
+    }
+    return `Something went wrong (HTTP ${status}).`;
+  }
+  async function api(path, opts) {
+    const { method = "GET", body, auth = true } = opts || {};
+    const headers = {};
+    if (body) headers["content-type"] = "application/json";
+    if (auth && state.token) headers["Authorization"] = "Bearer " + state.token;
+    const res = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    if (res.status === 401 && auth) {
+      logout();
+      throw new Error("Your session expired. Please log in again.");
+    }
+    if (res.status === 204) return null;
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(errorText(data, res.status));
+    return data;
+  }
+
+  /* ---------- tooltip (enhances; every value is also in the table view) ---------- */
+  const tip = $("#tip");
+  function showTip(x, y, title, rows) {
+    tip.replaceChildren(
+      el("div", { class: "t-title", text: title }),
+      ...rows.map((r) => el("div", { class: "t-row" },
+        r.key ? el("span", { class: "t-key" }) : null,
+        el("strong", { text: r.value }),
+        el("span", { class: "t-label", text: r.label }))));
+    tip.style.display = "block";
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    let left = x + 14, top = y - h - 10;
+    if (left + w > window.innerWidth - 8) left = x - w - 14;
+    if (left < 8) left = 8;
+    if (top < 8) top = y + 18;
+    tip.style.left = left + "px";
+    tip.style.top = top + "px";
+  }
+  function hideTip() { tip.style.display = "none"; }
+
+  /* ---------- charts ---------- */
+  function niceStep(raw) {
+    if (raw <= 1) return 1;
+    const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+    for (const m of [1, 2, 5, 10]) if (m * pow >= raw) return m * pow;
+    return 10 * pow;
+  }
+
+  function lastDays(n) {
+    // Server window is [now - n days, now], which touches n + 1 calendar dates (UTC).
+    const now = new Date();
+    const base = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const out = [];
+    for (let i = n; i >= 0; i--) out.push(new Date(base - i * 86400000).toISOString().slice(0, 10));
+    return out;
+  }
+
+  function renderLine(host, points) {
+    host.replaceChildren();
+    const W = Math.max(300, host.clientWidth), H = 220;
+    const m = { l: 36, r: 28, t: 18, b: 28 };
+    const iw = W - m.l - m.r, ih = H - m.t - m.b;
+    const n = points.length;
+    const maxV = Math.max(1, ...points.map((p) => p.count));
+    const step = niceStep(maxV / 4);
+    const yMax = Math.ceil(maxV / step) * step;
+    const x = (i) => m.l + (n === 1 ? iw / 2 : (i * iw) / (n - 1));
+    const y = (v) => m.t + ih - (v / yMax) * ih;
+    const total = points.reduce((s, p) => s + p.count, 0);
+
+    const root = svg("svg", {
+      viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img", tabindex: "0",
+      "aria-label": `Line chart of clicks per day. ${fmt(total)} clicks in total. Use the table view for exact values.`,
+    });
+
+    // recessive solid hairlines; the baseline is one step darker
+    for (let v = 0; v <= yMax; v += step) {
+      root.append(svg("line", { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: v === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }));
+      const t = svg("text", { x: m.l - 8, y: y(v), "text-anchor": "end", dy: "0.32em", class: "tick" });
+      t.textContent = fmt(v);
+      root.append(t);
+    }
+    const labelCount = Math.min(n, W < 480 ? 3 : 5);
+    for (let k = 0; k < labelCount; k++) {
+      const i = labelCount === 1 ? 0 : Math.round((k * (n - 1)) / (labelCount - 1));
+      const t = svg("text", { x: x(i), y: H - 8, "text-anchor": "middle", class: "tick" });
+      t.textContent = fmtDay(points[i].date);
+      root.append(t);
+    }
+
+    const path = points.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(p.count).toFixed(1)}`).join(" ");
+    root.append(svg("path", { d: `${path} L${x(n - 1).toFixed(1)} ${y(0)} L${x(0).toFixed(1)} ${y(0)} Z`, fill: "var(--series-1)", "fill-opacity": 0.1 }));
+    root.append(svg("path", { d: path, fill: "none", stroke: "var(--series-1)", "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+
+    // end-dot with a 2px surface ring, labelled with the latest value
+    const last = points[n - 1];
+    root.append(svg("circle", { cx: x(n - 1), cy: y(last.count), r: 4, fill: "var(--series-1)", stroke: "var(--surface)", "stroke-width": 2 }));
+    const endY = y(last.count) - 10 < m.t - 6 ? y(last.count) + 18 : y(last.count) - 10;
+    const end = svg("text", { x: x(n - 1), y: endY, "text-anchor": "end", class: "endlabel" });
+    end.textContent = fmt(last.count);
+    root.append(end);
+
+    // hover layer: crosshair snaps to the nearest day; the hit area is the whole plot
+    const cross = svg("line", { y1: m.t, y2: m.t + ih, stroke: "var(--muted)", "stroke-width": 1, visibility: "hidden" });
+    const dot = svg("circle", { r: 4, fill: "var(--series-1)", stroke: "var(--surface)", "stroke-width": 2, visibility: "hidden" });
+    const hit = svg("rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent" });
+    root.append(cross, dot, hit);
+
+    function focusAt(i, clientX, clientY) {
+      const p = points[i];
+      cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i));
+      dot.setAttribute("cx", x(i)); dot.setAttribute("cy", y(p.count));
+      cross.setAttribute("visibility", "visible"); dot.setAttribute("visibility", "visible");
+      if (clientX == null) {
+        const r = root.getBoundingClientRect();
+        clientX = r.left + x(i); clientY = r.top + y(p.count);
+      }
+      showTip(clientX, clientY, fmtDayLong(p.date), [{ key: true, value: fmt(p.count), label: p.count === 1 ? "click" : "clicks" }]);
+    }
+    function clear() { cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); hideTip(); }
+    const nearest = (ev) => {
+      const r = root.getBoundingClientRect();
+      const px = ((ev.clientX - r.left) / r.width) * W;
+      return Math.max(0, Math.min(n - 1, Math.round(((px - m.l) / iw) * (n - 1))));
+    };
+    hit.addEventListener("pointermove", (ev) => focusAt(nearest(ev), ev.clientX, ev.clientY));
+    hit.addEventListener("pointerleave", clear);
+    let kb = n - 1;
+    root.addEventListener("focus", () => focusAt(kb));
+    root.addEventListener("blur", clear);
+    root.addEventListener("keydown", (ev) => {
+      const moves = { ArrowLeft: kb - 1, ArrowRight: kb + 1, Home: 0, End: n - 1 };
+      if (!(ev.key in moves)) return;
+      ev.preventDefault();
+      kb = Math.max(0, Math.min(n - 1, moves[ev.key]));
+      focusAt(kb);
+    });
+    host.append(root);
+  }
+
+  function renderBars(host, items, total, noun) {
+    host.replaceChildren();
+    if (!items.length) { host.append(el("div", { class: "empty", text: "No data in this range." })); return; }
+    const max = Math.max(...items.map((i) => i.count));
+    const ul = el("ul", { class: "bars" });
+    for (const it of items) {
+      const share = total ? Math.round((it.count / total) * 100) : 0;
+      const bar = el("div", { class: "bar" });
+      bar.style.setProperty("--w", String(it.count / max));
+      const li = el("li", { tabindex: "0", "aria-label": `${it.label}: ${fmt(it.count)} ${noun}, ${share}%` },
+        el("span", { class: "bar-label", text: it.label, title: it.label }),
+        el("div", { class: "bar-area" }, bar, el("span", { class: "bar-value", text: fmt(it.count) })));
+      const show = (x, y) => showTip(x, y, it.label, [{ value: fmt(it.count), label: `${noun} (${share}%)` }]);
+      li.addEventListener("pointermove", (ev) => show(ev.clientX, ev.clientY));
+      li.addEventListener("pointerleave", hideTip);
+      li.addEventListener("focus", () => { const r = li.getBoundingClientRect(); show(r.left + r.width / 2, r.top); });
+      li.addEventListener("blur", hideTip);
+      ul.append(li);
+    }
+    host.append(ul);
+  }
+
+  function renderTable(host, headers, rows) {
+    host.replaceChildren();
+    if (!rows.length) { host.append(el("div", { class: "empty", text: "No data in this range." })); return; }
+    const thead = el("thead", {}, el("tr", {}, headers.map((h, i) => el("th", { class: i ? "num" : "", text: h }))));
+    const tbody = el("tbody", {}, rows.map((r) => el("tr", {}, r.map((c, i) => el("td", { class: i ? "num" : "", text: c })))));
+    host.append(el("div", { class: "datatable" }, el("table", {}, thead, tbody)));
+  }
+
+  function renderCharts() {
+    const d = state.data;
+    if (!d) return;
+    $("#hero-value").textContent = fmt(d.total_clicks);
+    $("#hero-label").textContent = `${d.total_clicks === 1 ? "click" : "clicks"} in the last ${state.days} days`;
+
+    const counts = new Map(d.clicks_by_day.map((r) => [r.date, r.count]));
+    state.series = lastDays(state.days).map((date) => ({ date, count: counts.get(date) || 0 }));
+
+    const dayHost = $("#chart-days");
+    if (d.total_clicks === 0) {
+      dayHost.replaceChildren(el("div", { class: "empty", text: "No clicks yet in this range. Open your short link to record one." }));
+    } else if (state.table) {
+      renderTable(dayHost, ["Date (UTC)", "Clicks"], state.series.slice().reverse().map((p) => [p.date, fmt(p.count)]));
+    } else {
+      renderLine(dayHost, state.series);
+    }
+
+    const cats = [["browsers", "#chart-browsers", d.browsers, "Browser"], ["devices", "#chart-devices", d.devices, "Device"],
+                  ["referrers", "#chart-referrers", d.top_referrers, "Referrer"], ["countries", "#chart-countries", d.countries, "Country"]];
+    for (const [, sel, items, head] of cats) {
+      const host = $(sel);
+      if (state.table) {
+        renderTable(host, [head, "Clicks", "Share"], items.map((i) => [i.label, fmt(i.count), (d.total_clicks ? Math.round((i.count / d.total_clicks) * 100) : 0) + "%"]));
+      } else {
+        renderBars(host, items, d.total_clicks, "clicks");
+      }
+    }
+  }
+
+  /* ---------- views ---------- */
+  function showAuth() {
+    $("#auth-view").hidden = false; $("#app-view").hidden = true; $("#who").hidden = true;
+  }
+  function showApp() {
+    $("#auth-view").hidden = true; $("#app-view").hidden = false; $("#who").hidden = false;
+    $("#who-email").textContent = state.email || "";
+  }
+  function logout() {
+    state.token = null; state.links = []; state.selected = null; state.data = null;
+    store.del("token");
+    hideTip();
+    showAuth();
+  }
+
+  function setMode(mode) {
+    state.mode = mode;
+    const reg = mode === "register";
+    $("#tab-login").setAttribute("aria-selected", String(!reg));
+    $("#tab-register").setAttribute("aria-selected", String(reg));
+    $("#auth-submit").textContent = reg ? "Create account" : "Log in";
+    $("#pw-hint").hidden = !reg;
+    $("#password").setAttribute("autocomplete", reg ? "new-password" : "current-password");
+    $("#auth-error").hidden = true;
+  }
+  function showMsg(node, text, isError) {
+    node.hidden = false;
+    node.className = "msg" + (isError ? " error" : "");
+    node.textContent = text;
+  }
+
+  /* ---------- links ---------- */
+  async function copy(text, btn) {
+    try { await navigator.clipboard.writeText(text); btn.textContent = "Copied"; }
+    catch (e) { btn.textContent = "Copy failed"; } // clipboard needs https or localhost
+    setTimeout(() => { btn.textContent = "Copy"; }, 1500);
+  }
+
+  function renderLinks() {
+    const body = $("#links-body");
+    body.replaceChildren();
+    $("#links-empty").hidden = state.links.length > 0;
+    $("#links-wrap").hidden = state.links.length === 0;
+    for (const l of state.links) {
+      const copyBtn = el("button", { class: "link", type: "button", text: "Copy" });
+      copyBtn.addEventListener("click", (ev) => { ev.stopPropagation(); copy(l.short_url, copyBtn); });
+      const delBtn = el("button", { class: "link", type: "button", text: "Delete" });
+      delBtn.addEventListener("click", async (ev) => {
+        ev.stopPropagation();
+        if (!confirm(`Delete /${l.code} and all of its click data? This cannot be undone.`)) return;
+        try { await api(`/api/links/${encodeURIComponent(l.code)}`, { method: "DELETE" }); } catch (e) { alert(e.message); return; }
+        if (state.selected === l.code) state.selected = null;
+        await loadLinks();
+      });
+      const a = el("a", { class: "short", href: l.short_url, target: "_blank", rel: "noopener noreferrer", text: "/" + l.code });
+      a.addEventListener("click", (ev) => ev.stopPropagation());
+      const expiry = l.expires_at ? ` · expires ${new Date(l.expires_at + "Z").toLocaleDateString()}` : "";
+      const tr = el("tr", { class: "row", tabindex: "0", "aria-selected": String(l.code === state.selected) },
+        el("td", {}, a, el("span", { class: "muted", text: expiry })),
+        el("td", { class: "dest col-dest", text: l.target_url, title: l.target_url }),
+        el("td", { class: "num", text: fmt(l.clicks) }),
+        el("td", { class: "col-created muted", text: new Date(l.created_at + "Z").toLocaleDateString() }),
+        el("td", { class: "actions" }, copyBtn, delBtn));
+      const select = () => { state.selected = l.code; renderLinks(); loadAnalytics(); };
+      tr.addEventListener("click", select);
+      tr.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); select(); } });
+      body.append(tr);
+    }
+  }
+
+  async function loadLinks() {
+    state.links = await api("/api/links?limit=100");
+    if (!state.links.some((l) => l.code === state.selected)) state.selected = state.links.length ? state.links[0].code : null;
+    renderLinks();
+    if (state.selected) await loadAnalytics(); else $("#analytics").hidden = true;
+  }
+
+  async function loadAnalytics() {
+    const code = state.selected;
+    if (!code) return;
+    const box = $("#analytics");
+    const link = state.links.find((l) => l.code === code);
+    box.hidden = false;
+    $("#a-title").textContent = "Analytics for /" + code;
+    $("#a-dest").textContent = link ? link.target_url : "";
+    box.classList.add("loading"); // keep the previous render, dimmed: no skeleton, no layout jump
+    try {
+      const data = await api(`/api/links/${encodeURIComponent(code)}/analytics?days=${state.days}`);
+      if (code !== state.selected) return; // user clicked another link meanwhile
+      state.data = data;
+      renderCharts();
+    } catch (e) {
+      $("#chart-days").replaceChildren(el("div", { class: "empty error", text: e.message }));
+    } finally {
+      box.classList.remove("loading");
+    }
+  }
+
+  /* ---------- events ---------- */
+  $("#tab-login").addEventListener("click", () => setMode("login"));
+  $("#tab-register").addEventListener("click", () => setMode("register"));
+  $("#logout").addEventListener("click", logout);
+
+  $("#auth-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const btn = $("#auth-submit");
+    const email = $("#email").value.trim(), password = $("#password").value;
+    btn.disabled = true; $("#auth-error").hidden = true;
+    try {
+      if (state.mode === "register") await api("/api/auth/register", { method: "POST", body: { email, password }, auth: false });
+      const tok = await api("/api/auth/login", { method: "POST", body: { email, password }, auth: false });
+      state.token = tok.access_token; state.email = email.toLowerCase();
+      store.set("token", state.token); store.set("email", state.email);
+      $("#password").value = "";
+      showApp();
+      await loadLinks();
+    } catch (e) {
+      showMsg($("#auth-error"), e.message, true);
+    } finally { btn.disabled = false; }
+  });
+
+  $("#create-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const btn = $("#create-submit"), msg = $("#create-msg");
+    const body = { url: $("#url").value.trim() };
+    if ($("#alias").value.trim()) body.custom_alias = $("#alias").value.trim();
+    if ($("#expires").value) body.expires_at = new Date($("#expires").value).toISOString();
+    btn.disabled = true; msg.hidden = true;
+    try {
+      const link = await api("/api/links", { method: "POST", body });
+      $("#create-form").reset();
+      state.selected = link.code;
+      const copyBtn = el("button", { class: "link", type: "button", text: "Copy" });
+      copyBtn.addEventListener("click", () => copy(link.short_url, copyBtn));
+      msg.className = "msg"; msg.hidden = false;
+      msg.replaceChildren(el("span", { text: "Created " }), el("a", { class: "short", href: link.short_url, target: "_blank", rel: "noopener noreferrer", text: link.short_url }), copyBtn);
+      await loadLinks();
+    } catch (e) {
+      showMsg(msg, e.message, true);
+    } finally { btn.disabled = false; }
+  });
+
+  for (const b of document.querySelectorAll(".seg button")) {
+    b.addEventListener("click", () => {
+      state.days = Number(b.dataset.days);
+      for (const o of document.querySelectorAll(".seg button")) o.setAttribute("aria-pressed", String(o === b));
+      loadAnalytics();
+    });
+  }
+  $("#table-toggle").addEventListener("click", (ev) => {
+    state.table = !state.table;
+    ev.currentTarget.setAttribute("aria-pressed", String(state.table));
+    hideTip();
+    renderCharts();
+  });
+
+  let raf = 0;
+  window.addEventListener("resize", () => {
+    cancelAnimationFrame(raf);
+    hideTip(); // re-rendering rebuilds the SVG, so any hover state is gone
+    raf = requestAnimationFrame(() => { if (!state.table) renderCharts(); });
+  });
+
+  /* ---------- boot ---------- */
+  if (state.token) {
+    showApp();
+    loadLinks().catch((e) => { if (state.token) alert(e.message); });
+  } else {
+    showAuth();
+  }
+})();
+</script>
+</body>
+</html>
