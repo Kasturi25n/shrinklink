@@ -1,0 +1,41 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://shortener:shortener@db:5432/shortener
+      REDIS_URL: redis://redis:6379/0
+      # Set a real secret (32+ chars) in your shell or .env: SECRET_KEY=$(openssl rand -hex 32)
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY, e.g. export SECRET_KEY=$(openssl rand -hex 32)}
+      BASE_URL: ${BASE_URL:-http://localhost:8000}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: shortener
+      POSTGRES_PASSWORD: shortener
+      POSTGRES_DB: shortener
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shortener"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
