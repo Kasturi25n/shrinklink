@@ -62,3 +62,14 @@ def test_upgrade_is_idempotent(tmp_path):
     migrate.upgrade(engine)
     migrate.upgrade(engine)
     assert version(engine) == "0001"
+
+
+def test_tables_with_empty_version_table_are_stamped(tmp_path):
+    # e.g. after "alembic downgrade base" followed by create_all(): the version
+    # table exists but records no revision.
+    engine = fresh_engine(tmp_path)
+    Base.metadata.create_all(engine)
+    with engine.begin() as conn:
+        conn.exec_driver_sql("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)")
+    migrate.upgrade(engine)
+    assert version(engine) == "0001"

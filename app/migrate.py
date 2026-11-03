@@ -1,7 +1,7 @@
 """Bring the database schema up to date with Alembic. Runs at app startup.
 
 - Fresh database: applies every migration.
-- Database created before migrations existed (tables, but no alembic_version):
+- Database created before migrations existed (tables, but no recorded revision):
   stamps it at the baseline revision, then applies anything newer. Nothing is
   re-created and no data is touched.
 - On Postgres, a transaction-level advisory lock makes concurrent instances
@@ -14,6 +14,7 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+from alembic.migration import MigrationContext
 from sqlalchemy import Engine, inspect, text
 
 log = logging.getLogger("uvicorn.error")
@@ -37,8 +38,9 @@ def upgrade(engine: Engine, revision: str = "head") -> None:
             conn.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": LOCK_KEY})
         cfg.attributes["connection"] = conn
 
-        tables = set(inspect(conn).get_table_names())
-        if "alembic_version" not in tables and "users" in tables:
+        # No revision recorded covers both a missing and an empty alembic_version table.
+        unversioned = MigrationContext.configure(conn).get_current_revision() is None
+        if unversioned and inspect(conn).has_table("users"):
             log.info("Existing schema without migration history: stamping %s", BASELINE)
             command.stamp(cfg, BASELINE)
 
