@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     create_rate_limit: int = 20
     rate_limit_window_seconds: int = 60
 
+    # Ops switch: log the forwarding headers each rate-limited request arrives with,
+    # to see what a proxy chain (e.g. Vercel -> Render) actually sends. Off by default.
+    log_proxy_headers: bool = False
+
 
     @field_validator("database_url")
     @classmethod

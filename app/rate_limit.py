@@ -4,10 +4,16 @@ Fixed window is simple and cheap (one INCR per request). The known trade-off is
 bursts at window boundaries (up to 2x the limit across the edge); a sliding
 window or token bucket fixes that at the cost of more state.
 """
+import logging
+
 from fastapi import Depends, HTTPException, Request, status
 
 from app.cache import Cache, get_cache
 from app.config import Settings, get_settings
+
+
+log = logging.getLogger("uvicorn.error")
+_PROXY_HEADERS = ("x-forwarded-for", "x-real-ip", "x-vercel-forwarded-for", "cf-connecting-ip", "true-client-ip", "forwarded")
 
 
 def client_ip(request: Request) -> str:
@@ -24,6 +30,9 @@ def _limiter(bucket: str, limit_attr: str):
         cache: Cache = Depends(get_cache),
         settings: Settings = Depends(get_settings),
     ) -> None:
+        if settings.log_proxy_headers:
+            seen = {h: request.headers[h] for h in _PROXY_HEADERS if h in request.headers}
+            log.info("proxy headers peer=%s %s", request.client.host if request.client else None, seen)
         limit = getattr(settings, limit_attr)
         window = settings.rate_limit_window_seconds
         count = cache.incr(f"rl:{bucket}:{client_ip(request)}", window)
