@@ -8,8 +8,8 @@ services:
     runtime: docker
     plan: free
     healthCheckPath: /health
-    # One instance only: tables are created at startup, so several instances
-    # booting against a fresh DB could race (see README roadmap: Alembic).
+    # Migrations run at startup under a Postgres advisory lock (app/migrate.py),
+    # so scaling this up is safe; the free plan allows one instance anyway.
     numInstances: 1
     envVars:
       - key: DATABASE_URL

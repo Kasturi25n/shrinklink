@@ -50,4 +50,12 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements-dev.txt
+      # Migrations on a fresh Postgres must produce exactly the models' schema.
+      - name: Migrations match models
+        env:
+          DATABASE_URL: postgresql+psycopg2://test:test@localhost:5432/test
+        run: |
+          alembic upgrade head
+          alembic check
+          alembic downgrade base
       - run: pytest -q

@@ -2,14 +2,15 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.database import Base, engine
+from app import migrate
+from app.database import engine
 from app.routers import analytics, auth, links, redirect, web
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Fine for a small project. For real schema evolution, switch to Alembic migrations.
-    Base.metadata.create_all(bind=engine)
+    # Alembic migrations (app/migrate.py): safe with several instances starting at once.
+    migrate.upgrade(engine)
     yield
 
 

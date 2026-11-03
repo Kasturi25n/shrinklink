@@ -91,6 +91,18 @@ The repo includes a [`render.yaml`](render.yaml) Blueprint. In the Render dashbo
 | 404 (not 403) for other users' links | Link codes can't be probed | - |
 | Only the referrer **host** is stored | Avoids storing tokens or PII from full referrer URLs | Less detail |
 | Cache layer behind one interface (Redis or in-memory) | Same code runs locally and in production | In-memory cache and rate limits are per-process; use Redis with more than one worker |
+| Alembic migrations, run at startup under a Postgres advisory lock | Schema changes are versioned and reviewable; instances starting together can't race; databases from before migrations are stamped, not re-created | Startup waits on the lock; a long migration delays boot (could move to a pre-deploy step) |
+
+## Database migrations
+
+The schema is managed with [Alembic](migrations/). The app runs `alembic upgrade head` at startup ([`app/migrate.py`](app/migrate.py)), and the CLI reads the same `DATABASE_URL`:
+
+```bash
+alembic revision --autogenerate -m "add link title"   # draft a migration from model changes
+alembic upgrade head                                  # apply
+```
+
+`tests/test_migrations.py` and CI's `alembic check` fail if the models change without a matching migration.
 
 ## Tests
 
@@ -119,7 +131,7 @@ These are laptop numbers for a single process, not a production benchmark. The P
 
 ## Known limitations / roadmap
 
-- [ ] Alembic migrations (tables are currently created at startup; with multiple workers on a fresh Postgres DB this can race)
+- [x] Alembic migrations
 - [ ] Batch click writes (buffer in memory or Redis, bulk insert) instead of one insert per click
 - [ ] GeoIP lookup (country currently comes from a proxy header such as Cloudflare's `CF-IPCountry`)
 - [ ] Sliding-window rate limiter
