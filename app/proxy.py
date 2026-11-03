@@ -8,11 +8,13 @@ left was written by whoever sent the request and can be forged. (The old code to
 leftmost entry, so a client could pick a fresh "IP" per request and dodge rate limits.)
 
 Resolution order:
-1. Vercel proves itself with a shared secret header, which vercel.json sets from an env
-   var and which overwrites any value a visitor sends. Only then do we believe Vercel's
-   view of the visitor: x-vercel-forwarded-for and x-vercel-ip-country.
-2. Otherwise, count TRUSTED_PROXY_HOPS entries from the right of X-Forwarded-For.
+1. Count TRUSTED_PROXY_HOPS entries from the right of X-Forwarded-For.
    On Render that is 3: [..., client, cloudflare, render-balancer].
+2. If Vercel proves itself with the shared secret header (vercel.json sets it from an env
+   var, overwriting any value a visitor sends), Vercel is one more trusted hop:
+   [client, vercel-egress, cloudflare, render-balancer]. Vercel rewrites X-Forwarded-For
+   but passes a visitor's own x-vercel-forwarded-for through untouched (observed in
+   production), so that header is never used.
 3. With neither configured (local dev, tests): the socket peer.
 """
 import hmac
@@ -39,12 +41,9 @@ def _forwarded_chain(request: Request) -> List[str]:
 
 
 def client_ip(request: Request, settings: Settings) -> str:
-    if from_trusted_edge(request, settings):
-        ip = request.headers.get("x-vercel-forwarded-for", "").split(",")[0].strip()
-        if ip:
-            return ip
-
     hops = settings.trusted_proxy_hops
+    if hops > 0 and from_trusted_edge(request, settings):
+        hops += 1
     chain = _forwarded_chain(request)
     if hops > 0 and chain:
         # A chain shorter than expected was written entirely by trusted proxies,

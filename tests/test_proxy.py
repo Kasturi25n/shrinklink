@@ -17,10 +17,11 @@ def cfg(**kw):
     return Settings(**{"proxy_secret": None, "trusted_proxy_hops": 0, **kw})
 
 
-# Through Vercel: Vercel replaces any client XFF and adds its own egress + headers.
+# Through Vercel: Vercel replaces any client XFF, but passes a forged
+# x-vercel-forwarded-for through untouched (both observed in production).
 VIA_VERCEL = {
     "x-forwarded-for": "103.23.29.116,13.200.251.57, 104.23.160.198, 10.29.222.54",
-    "x-vercel-forwarded-for": "103.23.29.116",
+    "x-vercel-forwarded-for": "4.4.4.4",
 }
 # Straight to Render with forged headers: the forged values sit left of the real client.
 DIRECT_FORGED = {
@@ -44,7 +45,7 @@ def test_short_chain_falls_back_to_leftmost_trusted_entry():
     assert client_ip(req({"x-forwarded-for": "1.2.3.4, 10.0.0.1"}), cfg(trusted_proxy_hops=3)) == "1.2.3.4"
 
 
-def test_vercel_header_trusted_only_with_the_secret():
+def test_vercel_is_an_extra_trusted_hop_only_with_the_secret():
     settings = cfg(proxy_secret=SECRET, trusted_proxy_hops=3)
     assert client_ip(req({**VIA_VERCEL, "x-proxy-secret": SECRET}), settings) == "103.23.29.116"
     assert client_ip(req({**DIRECT_FORGED, "x-proxy-secret": "guess"}), settings) == "103.23.29.125"

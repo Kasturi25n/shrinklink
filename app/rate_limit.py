@@ -13,7 +13,7 @@ from app.config import Settings, get_settings
 from app.proxy import client_ip, from_trusted_edge
 
 log = logging.getLogger("uvicorn.error")
-_PROXY_HEADERS = ("x-forwarded-for", "x-real-ip", "x-vercel-forwarded-for", "cf-connecting-ip", "true-client-ip", "forwarded")
+_PROXY_HEADERS = ("x-forwarded-for", "x-real-ip", "x-vercel-forwarded-for", "cf-connecting-ip", "true-client-ip", "forwarded", "x-vercel-ip-country", "cf-ipcountry")
 
 
 def _limiter(bucket: str, limit_attr: str):
@@ -25,8 +25,9 @@ def _limiter(bucket: str, limit_attr: str):
         if settings.log_proxy_headers:
             seen = {h: request.headers[h] for h in _PROXY_HEADERS if h in request.headers}
             log.info(
-                "proxy headers peer=%s trusted_edge=%s resolved=%s %s",
+                "proxy headers peer=%s secret_sent=%s trusted_edge=%s resolved=%s %s",
                 request.client.host if request.client else None,
+                "x-proxy-secret" in request.headers,
                 from_trusted_edge(request, settings),
                 client_ip(request, settings),
                 seen,
