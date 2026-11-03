@@ -6,7 +6,7 @@
 
 ![ShrinkLink analytics dashboard](docs/dashboard.png)
 
-**Live demo:** https://url-shortener-zeta-sepia-60.vercel.app (dashboard on Vercel) · API on Render: https://url-shortener-pmhm.onrender.com ([interactive API docs](https://url-shortener-pmhm.onrender.com/docs))
+**Live demo:** https://shrinklink-app.vercel.app (dashboard and short links on Vercel) · API on Render: https://url-shortener-pmhm.onrender.com ([interactive API docs](https://url-shortener-pmhm.onrender.com/docs))
 The backend runs on Render's free tier with Postgres and Redis. After ~15 minutes idle the first request takes 30-60 seconds to wake it.
 
 **Architecture:** Vercel serves the static dashboard and proxies `/api/*` and short-link redirects to the FastAPI backend on Render, so users only ever see the ShrinkLink domain.
