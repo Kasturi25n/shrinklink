@@ -17,7 +17,7 @@ def test_dashboard_is_served_with_a_locked_down_csp(client):
     r = client.get("/dashboard")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/html")
-    assert "Link analytics" in r.text
+    assert "ShrinkLink" in r.text
     csp = r.headers["content-security-policy"]
     assert "connect-src 'self'" in csp and "default-src 'none'" in csp
     assert r.headers["x-content-type-options"] == "nosniff"

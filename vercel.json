@@ -10,7 +10,11 @@
       "destination": "https://url-shortener-pmhm.onrender.com/api/:path*"
     },
     { "source": "/", "destination": "/dashboard.html" },
-    { "source": "/dashboard", "destination": "/dashboard.html" }
+    { "source": "/dashboard", "destination": "/dashboard.html" },
+    {
+      "source": "/:code",
+      "destination": "https://url-shortener-pmhm.onrender.com/:code"
+    }
   ],
   "headers": [
     {

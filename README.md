@@ -1,13 +1,15 @@
-# URL Shortener with Analytics
+# ShrinkLink
 
-[![CI](https://github.com/Kasturi25n/url-shortener/actions/workflows/ci.yml/badge.svg)](https://github.com/Kasturi25n/url-shortener/actions/workflows/ci.yml)
+[![CI](https://github.com/Kasturi25n/shrinklink/actions/workflows/ci.yml/badge.svg)](https://github.com/Kasturi25n/shrinklink/actions/workflows/ci.yml)
 
-A URL shortener built with **FastAPI**, with JWT auth, Redis caching, rate limiting and click analytics (referrers, browsers, devices, countries, clicks per day).
+**ShrinkLink** is a URL shortener with click analytics, built with **FastAPI**: JWT auth, Redis caching, rate limiting, and analytics on referrers, browsers, devices, countries and clicks per day.
 
-![Analytics dashboard](docs/dashboard.png)
+![ShrinkLink analytics dashboard](docs/dashboard.png)
 
-**Live demo:** https://url-shortener-pmhm.onrender.com ([interactive API docs](https://url-shortener-pmhm.onrender.com/docs))
-Hosted on Render's free tier with Postgres and Redis. After ~15 minutes idle the first request takes 30-60 seconds to wake the service.
+**Live demo:** https://url-shortener-zeta-sepia-60.vercel.app (dashboard on Vercel) · API on Render: https://url-shortener-pmhm.onrender.com ([interactive API docs](https://url-shortener-pmhm.onrender.com/docs))
+The backend runs on Render's free tier with Postgres and Redis. After ~15 minutes idle the first request takes 30-60 seconds to wake it.
+
+**Architecture:** Vercel serves the static dashboard and proxies `/api/*` and short-link redirects to the FastAPI backend on Render, so users only ever see the ShrinkLink domain.
 
 Runs with zero setup (SQLite + in-memory cache). In production it uses **PostgreSQL + Redis** via two environment variables.
 

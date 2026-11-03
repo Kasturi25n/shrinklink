@@ -14,7 +14,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="URL Shortener",
+    title="ShrinkLink",
     description="Shorten links and track clicks. Includes auth, caching, rate limiting and analytics.",
     version="0.1.0",
     lifespan=lifespan,

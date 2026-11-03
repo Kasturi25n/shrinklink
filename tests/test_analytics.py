@@ -103,3 +103,15 @@ def test_user_agent_parsing():
     assert referrer_host(None) is None
     assert referrer_host("") is None
     assert referrer_host("https://a.com/x?y=1") == "a.com"
+
+
+def test_country_prefers_vercel_header_when_proxied(client, auth):
+    # Behind the Vercel proxy, Cloudflare at the origin sees Vercel's server (e.g. US);
+    # Vercel's header carries the real visitor's country and must win.
+    code = make_link(client, auth)
+    client.get(f"/{code}", headers={"x-vercel-ip-country": "in", "cf-ipcountry": "US"}, follow_redirects=False)
+    client.get(f"/{code}", headers={"cf-ipcountry": "GB"}, follow_redirects=False)  # direct hit
+    client.get(f"/{code}", headers={"cf-ipcountry": "XX"}, follow_redirects=False)  # unknown
+    client.get(f"/{code}", headers={"x-vercel-ip-country": "<script>"}, follow_redirects=False)  # junk
+    countries = client.get(f"/api/links/{code}/analytics", headers=auth).json()["countries"]
+    assert sorted((c["label"], c["count"]) for c in countries) == [("GB", 1), ("IN", 1), ("Unknown", 2)]

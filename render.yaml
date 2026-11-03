@@ -1,5 +1,7 @@
 # Render Blueprint: Render dashboard -> New -> Blueprint -> pick this repo.
 # Provisions the API, a Postgres database and a Redis-compatible Key Value store.
+# NOTE: resource names below are identifiers, not branding. Renaming one makes Render
+# create a brand-new resource (and for the database, an empty one), so leave them as-is.
 services:
   - type: web
     name: url-shortener

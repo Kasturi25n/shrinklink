@@ -44,6 +44,20 @@ def record_click(
         db.commit()
 
 
+def visitor_country(request: Request) -> Optional[str]:
+    """Country of the visitor, from the edge proxy in front of us (absent when running locally).
+
+    Vercel's header comes first: when the Vercel front end proxies a redirect, Render's own
+    Cloudflare layer sees Vercel's server, so cf-ipcountry would report Vercel's location.
+    """
+    for header in ("x-vercel-ip-country", "cf-ipcountry"):
+        value = (request.headers.get(header) or "").strip().upper()
+        # Two-letter ISO codes only; Cloudflare uses XX (unknown) and T1 (Tor).
+        if len(value) == 2 and value.isalpha() and value != "XX":
+            return value
+    return None
+
+
 @router.get("/health", include_in_schema=False)
 def health():
     return {"status": "ok"}
@@ -87,8 +101,7 @@ def redirect(
         data["id"],
         request.headers.get("referer"),
         request.headers.get("user-agent", ""),
-        # Set by CDNs/proxies such as Cloudflare; absent when running locally.
-        request.headers.get("cf-ipcountry"),
+        visitor_country(request),
     )
     # 302, not 301: browsers cache 301s forever, which would hide repeat clicks from analytics.
     return RedirectResponse(data["url"], status_code=status.HTTP_302_FOUND)
