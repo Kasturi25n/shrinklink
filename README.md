@@ -56,6 +56,10 @@ docker compose up --build
 
 The repo includes a [`render.yaml`](render.yaml) Blueprint. In the Render dashboard choose **New → Blueprint**, select this repo, and it provisions the API (Docker), a Postgres database and a Redis-compatible Key Value store, all on free plans. `SECRET_KEY` is generated for you and the public URL is detected automatically.
 
+### Deploy the dashboard to Vercel (optional)
+
+[`vercel.json`](vercel.json) serves the dashboard as a static site and **proxies `/api/*` to the Render backend**, so the page stays same-origin: no CORS setup and no backend URL baked into the frontend. In Vercel choose **Add New → Project**, import this repo, keep the defaults, and deploy. To point it at a different backend, change the `destination` URL in `vercel.json`.
+
 ## API
 
 | Method | Path | Auth | Description |
