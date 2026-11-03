@@ -9,11 +9,29 @@
 **Live demo:** https://shrinklink-app.vercel.app (dashboard and short links on Vercel) · API on Render: https://url-shortener-pmhm.onrender.com ([interactive API docs](https://url-shortener-pmhm.onrender.com/docs))
 The backend runs on Render's free tier with Postgres and Redis. After ~15 minutes idle the first request takes 30-60 seconds to wake it.
 
-**Architecture:** Vercel serves the static dashboard and proxies `/api/*` and short-link redirects to the FastAPI backend on Render, so users only ever see the ShrinkLink domain.
-
 Runs with zero setup (SQLite + in-memory cache). In production it uses **PostgreSQL + Redis** via two environment variables.
 
 ## Architecture
+
+### Deployment
+
+```mermaid
+flowchart LR
+    U[Browser] -->|shrinklink-app.vercel.app| V
+    subgraph V[Vercel edge]
+        S[Static dashboard<br/>HTML/CSS/JS]
+        P[Proxy routes<br/>/api/* and /code<br/>+ x-proxy-secret<br/>+ x-visitor-country]
+    end
+    P -->|HTTPS| CF[Cloudflare<br/>Render's edge]
+    CF --> API[FastAPI on Render<br/>Docker]
+    API --> PG[(PostgreSQL<br/>Alembic migrations)]
+    API --> RD[(Redis<br/>cache + rate limits)]
+    GH[GitHub Actions CI<br/>SQLite 3.9/3.12<br/>Postgres + Redis] -.->|tests, alembic check| API
+```
+
+Visitors only ever see the Vercel domain. Vercel adds a shared-secret header to everything it proxies, which is how the backend knows which client-IP and country headers it can trust ([details](#deploy-the-dashboard-to-vercel-optional)).
+
+### Redirect path
 
 ```mermaid
 flowchart LR
