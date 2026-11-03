@@ -74,16 +74,14 @@ def client_ip(request: Request, settings: Settings) -> str:
 def visitor_country(request: Request, settings: Settings) -> Optional[str]:
     """Two-letter country of the visitor, or None (e.g. when running locally).
 
-    Through Vercel, Cloudflare at the origin sees Vercel's server, so cf-ipcountry would
-    report Vercel's location; Vercel's own header is right, but only once the request
-    is proven to come from Vercel. Cloudflare overwrites cf-ipcountry, so it can't be forged.
+    Through Vercel, Cloudflare at the origin sees Vercel's server, so cf-ipcountry is
+    Vercel's location, not the visitor's. vercel.json copies Vercel's geolocation into
+    x-visitor-country (and deletes any visitor-sent copy); that header is believed only
+    from the trusted edge. Direct requests use cf-ipcountry, which Cloudflare overwrites.
     """
-    headers = ["cf-ipcountry"]
-    if from_trusted_edge(request, settings):
-        headers.insert(0, "x-vercel-ip-country")
-    for header in headers:
-        value = (request.headers.get(header) or "").strip().upper()
-        # Two-letter ISO codes only; Cloudflare uses XX (unknown) and T1 (Tor).
-        if len(value) == 2 and value.isalpha() and value != "XX":
-            return value
+    header = "x-visitor-country" if from_trusted_edge(request, settings) else "cf-ipcountry"
+    value = (request.headers.get(header) or "").strip().upper()
+    # Two-letter ISO codes only; Cloudflare uses XX (unknown) and T1 (Tor).
+    if len(value) == 2 and value.isalpha() and value != "XX":
+        return value
     return None

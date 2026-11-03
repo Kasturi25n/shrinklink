@@ -20,14 +20,62 @@
         {
           "type": "request.headers",
           "op": "set",
-          "target": { "key": "x-proxy-secret" },
+          "target": {
+            "key": "x-proxy-secret"
+          },
           "args": "$PROXY_SECRET",
-          "env": ["PROXY_SECRET"]
+          "env": [
+            "PROXY_SECRET"
+          ]
+        },
+        {
+          "type": "request.headers",
+          "op": "delete",
+          "target": {
+            "key": "x-visitor-country"
+          }
         }
       ]
     },
-    { "src": "/(dashboard)?", "dest": "/dashboard.html" },
-    { "handle": "filesystem" },
+    {
+      "src": "/(dashboard)?",
+      "dest": "/dashboard.html"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/([^/]+)",
+      "has": [
+        {
+          "type": "header",
+          "key": "x-vercel-ip-country",
+          "value": "(?<country>[A-Za-z]{2})"
+        }
+      ],
+      "dest": "https://url-shortener-pmhm.onrender.com/$1",
+      "transforms": [
+        {
+          "type": "request.headers",
+          "op": "set",
+          "target": {
+            "key": "x-proxy-secret"
+          },
+          "args": "$PROXY_SECRET",
+          "env": [
+            "PROXY_SECRET"
+          ]
+        },
+        {
+          "type": "request.headers",
+          "op": "set",
+          "target": {
+            "key": "x-visitor-country"
+          },
+          "args": "$country"
+        }
+      ]
+    },
     {
       "src": "/([^/]+)",
       "dest": "https://url-shortener-pmhm.onrender.com/$1",
@@ -35,9 +83,20 @@
         {
           "type": "request.headers",
           "op": "set",
-          "target": { "key": "x-proxy-secret" },
+          "target": {
+            "key": "x-proxy-secret"
+          },
           "args": "$PROXY_SECRET",
-          "env": ["PROXY_SECRET"]
+          "env": [
+            "PROXY_SECRET"
+          ]
+        },
+        {
+          "type": "request.headers",
+          "op": "delete",
+          "target": {
+            "key": "x-visitor-country"
+          }
         }
       ]
     }

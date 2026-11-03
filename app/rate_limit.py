@@ -14,7 +14,7 @@ from app.config import Settings, get_settings
 from app.proxy import client_ip, from_trusted_edge
 
 log = logging.getLogger("uvicorn.error")
-_PROXY_HEADERS = ("x-forwarded-for", "x-real-ip", "x-vercel-forwarded-for", "cf-connecting-ip", "true-client-ip", "forwarded", "x-vercel-ip-country", "cf-ipcountry")
+_PROXY_HEADERS = ("x-forwarded-for", "x-real-ip", "x-vercel-forwarded-for", "cf-connecting-ip", "true-client-ip", "forwarded", "x-visitor-country", "cf-ipcountry")
 
 
 def _fingerprint(value):

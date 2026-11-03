@@ -105,17 +105,17 @@ def test_user_agent_parsing():
     assert referrer_host("https://a.com/x?y=1") == "a.com"
 
 
-def test_country_prefers_vercel_header_only_from_trusted_proxy(client, auth, settings, monkeypatch):
-    # Behind the Vercel proxy, Cloudflare at the origin sees Vercel's server (e.g. US);
-    # Vercel's header carries the real visitor's country and wins, but only when the
-    # request carries the proxy secret. Anyone else could forge it.
+def test_country_from_trusted_edge_header_only(client, auth, settings, monkeypatch):
+    # Through Vercel, cf-ipcountry is Vercel's server location, so only the edge's
+    # x-visitor-country counts; without the secret anyone could forge that header.
     monkeypatch.setattr(settings, "proxy_secret", "s3cret")
     code = make_link(client, auth)
     vercel = {"x-proxy-secret": "s3cret"}
-    client.get(f"/{code}", headers={**vercel, "x-vercel-ip-country": "in", "cf-ipcountry": "US"}, follow_redirects=False)
-    client.get(f"/{code}", headers={"x-vercel-ip-country": "FR", "cf-ipcountry": "GB"}, follow_redirects=False)  # forged
-    client.get(f"/{code}", headers={"x-proxy-secret": "wrong", "x-vercel-ip-country": "FR"}, follow_redirects=False)
+    client.get(f"/{code}", headers={**vercel, "x-visitor-country": "in", "cf-ipcountry": "US"}, follow_redirects=False)
+    client.get(f"/{code}", headers={**vercel, "cf-ipcountry": "US"}, follow_redirects=False)  # edge had no geo
+    client.get(f"/{code}", headers={"x-visitor-country": "FR", "cf-ipcountry": "GB"}, follow_redirects=False)  # direct, forged
+    client.get(f"/{code}", headers={"x-proxy-secret": "wrong", "x-visitor-country": "FR"}, follow_redirects=False)
     client.get(f"/{code}", headers={"cf-ipcountry": "XX"}, follow_redirects=False)  # unknown
-    client.get(f"/{code}", headers={**vercel, "x-vercel-ip-country": "<script>"}, follow_redirects=False)  # junk
+    client.get(f"/{code}", headers={**vercel, "x-visitor-country": "<script>"}, follow_redirects=False)  # junk
     countries = client.get(f"/api/links/{code}/analytics", headers=auth).json()["countries"]
-    assert sorted((c["label"], c["count"]) for c in countries) == [("GB", 1), ("IN", 1), ("Unknown", 3)]
+    assert sorted((c["label"], c["count"]) for c in countries) == [("GB", 1), ("IN", 1), ("Unknown", 4)]
