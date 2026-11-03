@@ -4,6 +4,7 @@ Fixed window is simple and cheap (one INCR per request). The known trade-off is
 bursts at window boundaries (up to 2x the limit across the edge); a sliding
 window or token bucket fixes that at the cost of more state.
 """
+import hashlib
 import logging
 
 from fastapi import Depends, HTTPException, Request, status
@@ -16,6 +17,13 @@ log = logging.getLogger("uvicorn.error")
 _PROXY_HEADERS = ("x-forwarded-for", "x-real-ip", "x-vercel-forwarded-for", "cf-connecting-ip", "true-client-ip", "forwarded", "x-vercel-ip-country", "cf-ipcountry")
 
 
+def _fingerprint(value):
+    # Enough to compare two secrets in logs without revealing either.
+    if value is None:
+        return None
+    return f"len{len(value)}:{hashlib.sha256(value.encode()).hexdigest()[:8]}"
+
+
 def _limiter(bucket: str, limit_attr: str):
     def dependency(
         request: Request,
@@ -25,9 +33,10 @@ def _limiter(bucket: str, limit_attr: str):
         if settings.log_proxy_headers:
             seen = {h: request.headers[h] for h in _PROXY_HEADERS if h in request.headers}
             log.info(
-                "proxy headers peer=%s secret_sent=%s trusted_edge=%s resolved=%s %s",
+                "proxy headers peer=%s secret_sent=%s expected=%s trusted_edge=%s resolved=%s %s",
                 request.client.host if request.client else None,
-                "x-proxy-secret" in request.headers,
+                _fingerprint(request.headers.get("x-proxy-secret")),
+                _fingerprint(settings.proxy_secret),
                 from_trusted_edge(request, settings),
                 client_ip(request, settings),
                 seen,
