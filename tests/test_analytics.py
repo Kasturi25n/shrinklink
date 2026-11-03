@@ -105,13 +105,17 @@ def test_user_agent_parsing():
     assert referrer_host("https://a.com/x?y=1") == "a.com"
 
 
-def test_country_prefers_vercel_header_when_proxied(client, auth):
+def test_country_prefers_vercel_header_only_from_trusted_proxy(client, auth, settings, monkeypatch):
     # Behind the Vercel proxy, Cloudflare at the origin sees Vercel's server (e.g. US);
-    # Vercel's header carries the real visitor's country and must win.
+    # Vercel's header carries the real visitor's country and wins, but only when the
+    # request carries the proxy secret. Anyone else could forge it.
+    monkeypatch.setattr(settings, "proxy_secret", "s3cret")
     code = make_link(client, auth)
-    client.get(f"/{code}", headers={"x-vercel-ip-country": "in", "cf-ipcountry": "US"}, follow_redirects=False)
-    client.get(f"/{code}", headers={"cf-ipcountry": "GB"}, follow_redirects=False)  # direct hit
+    vercel = {"x-proxy-secret": "s3cret"}
+    client.get(f"/{code}", headers={**vercel, "x-vercel-ip-country": "in", "cf-ipcountry": "US"}, follow_redirects=False)
+    client.get(f"/{code}", headers={"x-vercel-ip-country": "FR", "cf-ipcountry": "GB"}, follow_redirects=False)  # forged
+    client.get(f"/{code}", headers={"x-proxy-secret": "wrong", "x-vercel-ip-country": "FR"}, follow_redirects=False)
     client.get(f"/{code}", headers={"cf-ipcountry": "XX"}, follow_redirects=False)  # unknown
-    client.get(f"/{code}", headers={"x-vercel-ip-country": "<script>"}, follow_redirects=False)  # junk
+    client.get(f"/{code}", headers={**vercel, "x-vercel-ip-country": "<script>"}, follow_redirects=False)  # junk
     countries = client.get(f"/api/links/{code}/analytics", headers=auth).json()["countries"]
-    assert sorted((c["label"], c["count"]) for c in countries) == [("GB", 1), ("IN", 1), ("Unknown", 2)]
+    assert sorted((c["label"], c["count"]) for c in countries) == [("GB", 1), ("IN", 1), ("Unknown", 3)]

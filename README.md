@@ -60,7 +60,9 @@ The repo includes a [`render.yaml`](render.yaml) Blueprint. In the Render dashbo
 
 ### Deploy the dashboard to Vercel (optional)
 
-[`vercel.json`](vercel.json) serves the dashboard as a static site and **proxies `/api/*` to the Render backend**, so the page stays same-origin: no CORS setup and no backend URL baked into the frontend. In Vercel choose **Add New → Project**, import this repo, keep the defaults, and deploy. To point it at a different backend, change the `destination` URL in `vercel.json`.
+[`vercel.json`](vercel.json) serves the dashboard as a static site and **proxies `/api/*` to the Render backend**, so the page stays same-origin: no CORS setup and no backend URL baked into the frontend. In Vercel choose **Add New → Project**, import this repo, keep the defaults, and deploy. To point it at a different backend, change the `dest` URLs in `vercel.json`.
+
+**Trusting the client IP.** Rate limits key on the client IP, and `X-Forwarded-For` is easy to forge: the old code took its leftmost entry, so a client could send a new fake IP with every request and never hit the limit. Now Vercel adds an `x-proxy-secret` header (from the `PROXY_SECRET` env var, which overwrites any value a visitor sends), and the backend trusts Vercel's `x-vercel-forwarded-for`/`x-vercel-ip-country` only when it matches. Any other request is keyed on the entry `TRUSTED_PROXY_HOPS` from the right of `X-Forwarded-For`, which only Render's own proxies write. See [`app/proxy.py`](app/proxy.py). Set the same random `PROXY_SECRET` on both Vercel and Render.
 
 ## API
 

@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     create_rate_limit: int = 20
     rate_limit_window_seconds: int = 60
 
+    # Client IP resolution behind proxies (see app/proxy.py).
+    # Shared secret the Vercel front end sends in x-proxy-secret; unset = trust no edge headers.
+    proxy_secret: Optional[str] = None
+    # Proxies that append to X-Forwarded-For in front of the app (3 on Render); 0 = socket peer.
+    trusted_proxy_hops: int = 0
+
     # Ops switch: log the forwarding headers each rate-limited request arrives with,
     # to see what a proxy chain (e.g. Vercel -> Render) actually sends. Off by default.
     log_proxy_headers: bool = False

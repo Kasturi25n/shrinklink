@@ -4,27 +4,41 @@
   "installCommand": "",
   "buildCommand": "",
   "outputDirectory": "app/static",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/:path*",
-      "destination": "https://url-shortener-pmhm.onrender.com/api/:path*"
+      "src": "/(.*)",
+      "headers": {
+        "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+        "X-Content-Type-Options": "nosniff"
+      },
+      "continue": true
     },
-    { "source": "/", "destination": "/dashboard.html" },
-    { "source": "/dashboard", "destination": "/dashboard.html" },
     {
-      "source": "/:code",
-      "destination": "https://url-shortener-pmhm.onrender.com/:code"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
+      "src": "/api/(.*)",
+      "dest": "https://url-shortener-pmhm.onrender.com/api/$1",
+      "transforms": [
         {
-          "key": "Content-Security-Policy",
-          "value": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
-        },
-        { "key": "X-Content-Type-Options", "value": "nosniff" }
+          "type": "request.headers",
+          "op": "set",
+          "target": { "key": "x-proxy-secret" },
+          "args": "$PROXY_SECRET",
+          "env": ["PROXY_SECRET"]
+        }
+      ]
+    },
+    { "src": "/(dashboard)?", "dest": "/dashboard.html" },
+    { "handle": "filesystem" },
+    {
+      "src": "/([^/]+)",
+      "dest": "https://url-shortener-pmhm.onrender.com/$1",
+      "transforms": [
+        {
+          "type": "request.headers",
+          "op": "set",
+          "target": { "key": "x-proxy-secret" },
+          "args": "$PROXY_SECRET",
+          "env": ["PROXY_SECRET"]
+        }
       ]
     }
   ]
