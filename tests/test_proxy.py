@@ -17,11 +17,12 @@ def cfg(**kw):
     return Settings(**{"proxy_secret": None, "trusted_proxy_hops": 0, **kw})
 
 
-# Through Vercel: Vercel replaces any client XFF, but passes a forged
-# x-vercel-forwarded-for through untouched (both observed in production).
+# Through Vercel, as logged in production: some Vercel edges pass forged
+# X-Forwarded-For / x-vercel-forwarded-for through, but Forwarded is Vercel's own.
 VIA_VERCEL = {
-    "x-forwarded-for": "103.23.29.116,13.200.251.57, 104.23.160.198, 10.29.222.54",
+    "x-forwarded-for": "6.6.6.6,13.126.34.128, 104.23.160.216, 10.29.222.54",
     "x-vercel-forwarded-for": "4.4.4.4",
+    "forwarded": "for=103.23.29.122;host=url-shortener-pmhm.onrender.com;proto=https",
 }
 # Straight to Render with forged headers: the forged values sit left of the real client.
 DIRECT_FORGED = {
@@ -38,18 +39,40 @@ def test_hops_pick_the_entry_the_outermost_trusted_proxy_wrote():
     settings = cfg(trusted_proxy_hops=3)
     assert client_ip(req(DIRECT_FORGED), settings) == "103.23.29.125"  # forged 6.6.6.6 ignored
     # Through Vercel without the secret, the "client" is Vercel's server: safe, if coarse.
-    assert client_ip(req(VIA_VERCEL), settings) == "13.200.251.57"
+    assert client_ip(req(VIA_VERCEL), settings) == "13.126.34.128"
 
 
 def test_short_chain_falls_back_to_leftmost_trusted_entry():
     assert client_ip(req({"x-forwarded-for": "1.2.3.4, 10.0.0.1"}), cfg(trusted_proxy_hops=3)) == "1.2.3.4"
 
 
-def test_vercel_is_an_extra_trusted_hop_only_with_the_secret():
+def test_vercel_forwarded_header_trusted_only_with_the_secret():
     settings = cfg(proxy_secret=SECRET, trusted_proxy_hops=3)
-    assert client_ip(req({**VIA_VERCEL, "x-proxy-secret": SECRET}), settings) == "103.23.29.116"
+    assert client_ip(req({**VIA_VERCEL, "x-proxy-secret": SECRET}), settings) == "103.23.29.122"
+    assert client_ip(req({**DIRECT_FORGED, "forwarded": "for=7.7.7.7"}), settings) == "103.23.29.125"
     assert client_ip(req({**DIRECT_FORGED, "x-proxy-secret": "guess"}), settings) == "103.23.29.125"
     assert client_ip(req(DIRECT_FORGED), settings) == "103.23.29.125"
+
+
+@pytest.mark.parametrize(
+    "header, expected",
+    [
+        ("for=1.2.3.4", "1.2.3.4"),
+        ("for=9.9.9.9, for=1.2.3.4;proto=https", "1.2.3.4"),  # last element is the edge's
+        ("for=1.2.3.4:4711", "1.2.3.4"),
+        ('for="[2001:db8::1]:4711"', "2001:db8::1"),
+        ("For=1.2.3.4", "1.2.3.4"),
+    ],
+)
+def test_forwarded_header_parsing(header, expected):
+    settings = cfg(proxy_secret=SECRET)
+    assert client_ip(req({"forwarded": header, "x-proxy-secret": SECRET}), settings) == expected
+
+
+def test_trusted_edge_without_forwarded_falls_back_to_hops():
+    settings = cfg(proxy_secret=SECRET, trusted_proxy_hops=3)
+    headers = {"x-forwarded-for": VIA_VERCEL["x-forwarded-for"], "x-proxy-secret": SECRET}
+    assert client_ip(req(headers), settings) == "13.126.34.128"
 
 
 @pytest.mark.parametrize("sent", [None, "", "guess", SECRET + "x"])

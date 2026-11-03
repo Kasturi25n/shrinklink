@@ -11,10 +11,10 @@ Resolution order:
 1. Count TRUSTED_PROXY_HOPS entries from the right of X-Forwarded-For.
    On Render that is 3: [..., client, cloudflare, render-balancer].
 2. If Vercel proves itself with the shared secret header (vercel.json sets it from an env
-   var, overwriting any value a visitor sends), Vercel is one more trusted hop:
-   [client, vercel-egress, cloudflare, render-balancer]. Vercel rewrites X-Forwarded-For
-   but passes a visitor's own x-vercel-forwarded-for through untouched (observed in
-   production), so that header is never used.
+   var, overwriting any value a visitor sends), the visitor is the last `for=` of the
+   standard Forwarded header, which Vercel writes. Production probes showed some Vercel
+   edges pass a visitor's own X-Forwarded-For and x-vercel-forwarded-for through
+   untouched, while Forwarded was correct in every probe, forged or not.
 3. With neither configured (local dev, tests): the socket peer.
 """
 import hmac
@@ -40,10 +40,28 @@ def _forwarded_chain(request: Request) -> List[str]:
     return [part.strip() for part in raw.split(",") if part.strip()]
 
 
+def _forwarded_for(request: Request) -> Optional[str]:
+    """The `for=` of the last element of an RFC 7239 Forwarded header."""
+    last = request.headers.get("forwarded", "").split(",")[-1]
+    for pair in last.split(";"):
+        key, _, value = pair.strip().partition("=")
+        if key.lower() == "for":
+            value = value.strip('"')
+            if value.startswith("["):  # quoted IPv6, optionally with a port
+                return value[1:].split("]")[0] or None
+            if value.count(":") == 1:  # IPv4 with a port
+                value = value.split(":")[0]
+            return value or None
+    return None
+
+
 def client_ip(request: Request, settings: Settings) -> str:
+    if from_trusted_edge(request, settings):
+        ip = _forwarded_for(request)
+        if ip:
+            return ip
+
     hops = settings.trusted_proxy_hops
-    if hops > 0 and from_trusted_edge(request, settings):
-        hops += 1
     chain = _forwarded_chain(request)
     if hops > 0 and chain:
         # A chain shorter than expected was written entirely by trusted proxies,
